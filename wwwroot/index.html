@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure OpenAI Dall-E 3 Lab</title>
+    <script src="https://unpkg.com/vue@next"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2"></script>
+    <style>
+        textarea {
+            margin-top: 12px;
+        }
+        .icon {
+            cursor: pointer;
+        }
+        fieldset {
+            width: 400px;
+            margin-bottom: 12px;
+            padding-right: 20px;
+        }
+        fieldset form > input {
+            display: block;
+        }
+        .w100 {
+            width: 100%;
+        }
+        .list {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .image {
+            max-width: 360px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            box-shadow: 1px 5px 5px #ccc;
+        }
+        .image > img {
+            width: 100%;
+        }
+        .image .desc {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .gen-btn {
+            font-size: 1.5em;
+            width: 150px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <h2>
+            Azure OpenAI Dall-E 3 Lab
+            <span class=icon v-on:click="SetupApi = !SetupApi">🛠️</span>
+        </h2>
+        <fieldset v-show="SetupApi">
+            <legend>Setup</legend>
+            <form action="/api/setup" method="post" target="_blank">
+                <dl>
+                    <dt>Endpoint</dt>
+                    <dd>
+                        <input type="text" name="endPoint" placeholder="https://name.openai.azure.com" class="w100" >
+                    </dd>
+                    <dt>Api Key</dt>
+                    <dd>
+                        <input type="password" name="apiKey" class="w100" />
+                    </dd>
+                    <dt>Model Name</dt>
+                    <dd>
+                        <input type="text" name="modelName" value="dall-e" />
+                        </dd>
+                    <dt>Api Version</dt>
+                    <dd>    
+                        <input type="text" name="apiVersion" value="2023-12-01-preview" />
+                    </dd>
+                </dl>
+                <button type="submit" v-on:click="SetupApi = false">Save</button>
+            </form>
+        </fieldset>
+        <div>
+            尺寸：
+            <select v-model="Size">
+                <option v-for="size in Sizes" :value="size">{{ size }}</option>
+            </select>
+            /
+            品質：
+            <select v-model="Quality">
+                <option v-for="quality in Qualities" :value="quality">{{ quality }}</option>
+            </select>
+            /
+            風格：
+            <select v-model="Style">
+                <option v-for="style in Styles" :value="style">{{ style }}</option>
+            </select>
+            /
+            張數：
+            <input type="number" v-model.number="N" min="1" max="4">
+        </div>
+        <div>
+            <textarea v-model="Prompt" rows="5" cols="70"></textarea>
+        </div>
+        <div>
+            <button @click="Generate()" class="gen-btn">
+                Generate
+                <span v-show="Buzy">
+                    <img src="/loading.gif" width="16" height="16" />
+                </span>
+            </button>
+        </div>
+        <div class="list">
+            <div v-for="img in Images" class="image">
+                <img :src="img.url" />
+                <div class="desc">
+                    {{ img.revised_prompt }}
+                </pre>
+            </div>
+        </div>
+
+    </div>
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    Buzy: false,
+                    SetupApi: false,
+                    Sizes: ['1792x1024', '1024x1024', '1024x1792'],
+                    Size: '1024x1024',
+                    N: 1,
+                    Qualities: ['hd', 'standard'],
+                    Quality: 'standard',
+                    Prompt: 'A multi-colored umbrella on the beach, disposable camera',
+                    Styles: ['vivid', 'natural'],
+                    Style: 'vivid',
+                    Images: []
+                }
+            },
+            methods: {
+                Generate() {
+                    const self = this;
+                    let url = `/api/generate`;
+                    self.Buzy = true;
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            size: this.Size,
+                            n: this.N,
+                            quality: this.Quality,
+                            prompt: this.Prompt,
+                            style: this.Style
+                        })
+                    }).then((response) => {
+                        self.Buzy = false;
+                        if (response.status == 200) {
+                            return response.json();
+                        } else {
+                            throw response;
+                        }
+                    }).then((json) => {
+                        var data = JSON.parse(json);
+                        self.Images = data.data;
+                    }).catch((error) => {
+                        error.json().then(errMsg => {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops...',
+                                text: errMsg
+                            });
+                        });
+                    });
+                }
+            }
+        });
+        app.mount('#app');
+    </script>
+</body>
+
+</html>
